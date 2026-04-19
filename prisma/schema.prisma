@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("free")
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+
+  users   User[]
+  qrCodes QrCode[]
+  scans   ScanEvent[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("owner")
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model QrCode {
+  id         String   @id @default(cuid())
+  tenantId   String
+  name       String
+  slug       String   @unique
+  type       String   @default("dynamic")
+  targetUrl  String
+  shortPath  String   @unique
+  status     String   @default("active")
+  designJson Json?
+  imageUrl   String?
+  createdBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scans  ScanEvent[]
+
+  @@index([tenantId, createdAt])
+}
+
+model ScanEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  qrCodeId   String
+  scannedAt  DateTime @default(now())
+  ipHash     String?
+  userAgent  String?
+  referer    String?
+  country    String?
+  city       String?
+  deviceType String?
+  os         String?
+  browser    String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  qrCode QrCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+
+  @@index([qrCodeId, scannedAt])
+}
