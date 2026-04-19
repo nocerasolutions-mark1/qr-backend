@@ -1,11 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, type AuthRequest } from "../middleware/auth.js";
-import {
-  createQrCode,
-  getQrCodes,
-  updateQrCode,
-} from "../services/qr.service.js";
+
 import {
   createQrCode,
   getQrCodes,
@@ -50,6 +46,8 @@ router.post("/", async (req: AuthRequest, res, next) => {
 
 router.patch("/:id", async (req: AuthRequest, res, next) => {
   try {
+    const qrCodeId = String(req.params.id);
+
     const schema = z.object({
       name: z.string().optional(),
       targetUrl: z.string().url().optional(),
@@ -60,7 +58,7 @@ router.patch("/:id", async (req: AuthRequest, res, next) => {
 
     const qrCode = await updateQrCode({
       tenantId: req.auth!.tenantId,
-      qrCodeId: req.params.id,
+      qrCodeId,
       ...body,
     });
 
@@ -72,15 +70,17 @@ router.patch("/:id", async (req: AuthRequest, res, next) => {
 
 router.get("/:id/image", async (req: AuthRequest, res, next) => {
   try {
+    const qrCodeId = String(req.params.id);
+
     const pngBuffer = await getQrPngBufferForCodeId(
       req.auth!.tenantId,
-      req.params.id,
+      qrCodeId,
     );
 
     res.setHeader("Content-Type", "image/png");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="qr-${req.params.id}.png"`,
+      `inline; filename="qr-${qrCodeId}.png"`,
     );
     return res.send(pngBuffer);
   } catch (err) {
