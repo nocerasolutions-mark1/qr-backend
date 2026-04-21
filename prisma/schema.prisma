@@ -47,16 +47,16 @@ model QrCode {
   updatedAt  DateTime @updatedAt
 
   tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  scans  ScanEvents[]
+  scanEvents ScanEvent[]
 
   @@index([tenantId, createdAt])
 }
 
-model ScanEvents {
+model ScanEvent {
   id         String   @id @default(cuid())
   tenantId   String
   qrCodeId   String
-  scannedAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
   ipHash     String?
   userAgent  String?
   referer    String?
@@ -69,5 +69,5 @@ model ScanEvents {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   qrCode QrCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
 
-  @@index([qrCodeId, scannedAt])
+  @@index([qrCodeId, createdAt])
 }
