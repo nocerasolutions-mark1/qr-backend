@@ -68,6 +68,13 @@ export async function getQrCodes(tenantId: string) {
   return prisma.qrCode.findMany({
     where: { tenantId },
     orderBy: { createdAt: "desc" },
+    include: {
+      _count: {
+        select: {
+          scanEvents: true,
+        },
+      },
+    },
   });
 }
 
@@ -84,6 +91,14 @@ export async function updateQrCode(input: {
 
   if (!existing) {
     throw new Error("QR code not found");
+  }
+
+  if (
+    existing.type === "static" &&
+    input.targetUrl &&
+    input.targetUrl !== existing.targetUrl
+  ) {
+    throw new Error("Static QR target URL cannot be edited");
   }
 
   return prisma.qrCode.update({
@@ -111,4 +126,19 @@ export async function getQrSvgForCode(shortPath: string) {
       : `${env.appBaseUrl}/r/${shortPath}`;
 
   return generateQrSvg(url);
+}
+
+export async function getQrCodeById(tenantId: string, qrCodeId: string) {
+  const qrCode = await prisma.qrCode.findFirst({
+    where: {
+      id: qrCodeId,
+      tenantId,
+    },
+  });
+
+  if (!qrCode) {
+    throw new Error("QR code not found");
+  }
+
+  return qrCode;
 }

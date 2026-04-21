@@ -7,6 +7,7 @@ import {
   getQrCodes,
   updateQrCode,
   getQrPngBufferForCodeId,
+  getQrCodeById,
 } from "../services/qr.service.js";
 
 const router = Router();
@@ -38,6 +39,16 @@ router.post("/", async (req: AuthRequest, res, next) => {
       ...body,
     });
 
+    res.json(qrCode);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:id", async (req: AuthRequest, res, next) => {
+  try {
+    const qrCodeId = String(req.params.id);
+    const qrCode = await getQrCodeById(req.auth!.tenantId, qrCodeId);
     res.json(qrCode);
   } catch (err) {
     next(err);

@@ -36,3 +36,28 @@ export async function getAnalyticsSummary(tenantId: string) {
 
   return { totalScans, totalQrCodes };
 }
+
+export async function getQrAnalytics(tenantId: string, qrCodeId: string) {
+  const totalScans = await prisma.scanEvent.count({
+    where: { tenantId, qrCodeId },
+  });
+
+  const recentScans = await prisma.scanEvent.findMany({
+    where: { tenantId, qrCodeId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: {
+      createdAt: true,
+      browser: true,
+      os: true,
+      deviceType: true,
+      referer: true,
+    },
+  });
+
+  return {
+    qrCodeId,
+    totalScans,
+    recentScans,
+  };
+}
