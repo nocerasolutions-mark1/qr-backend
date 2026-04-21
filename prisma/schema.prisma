@@ -17,7 +17,7 @@ model Tenant {
 
   users   User[]
   qrCodes QrCode[]
-  scans   ScanEvents[]
+  scans   ScanEvent[]
 }
 
 model User {
