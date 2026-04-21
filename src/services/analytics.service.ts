@@ -11,7 +11,7 @@ export async function logScan(input: {
 }) {
   const parsed = input.userAgent ? UAParser(input.userAgent) : undefined;
 
-  return prisma.scanEvent.create({
+  return prisma.scanEvents.create({
     data: {
       tenantId: input.tenantId,
       qrCodeId: input.qrCodeId,
@@ -26,7 +26,7 @@ export async function logScan(input: {
 }
 
 export async function getAnalyticsSummary(tenantId: string) {
-  const totalScans = await prisma.scanEvent.count({
+  const totalScans = await prisma.scanEvents.count({
     where: { tenantId },
   });
 
@@ -38,11 +38,11 @@ export async function getAnalyticsSummary(tenantId: string) {
 }
 
 export async function getQrAnalytics(tenantId: string, qrCodeId: string) {
-  const totalScans = await prisma.scanEvent.count({
+  const totalScans = await prisma.scanEvents.count({
     where: { tenantId, qrCodeId },
   });
 
-  const recentScans = await prisma.scanEvent.findMany({
+  const recentScans = await prisma.scanEvents.findMany({
     where: { tenantId, qrCodeId },
     orderBy: { createdAt: "desc" },
     take: 20,
