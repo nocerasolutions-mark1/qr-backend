@@ -142,3 +142,22 @@ export async function getQrCodeById(tenantId: string, qrCodeId: string) {
 
   return qrCode;
 }
+
+export async function deleteQrCode(tenantId: string, qrCodeId: string) {
+  const existing = await prisma.qrCode.findFirst({
+    where: {
+      id: qrCodeId,
+      tenantId,
+    },
+  });
+
+  if (!existing) {
+    throw new Error("QR code not found");
+  }
+
+  await prisma.qrCode.delete({
+    where: { id: qrCodeId },
+  });
+
+  return { success: true };
+}

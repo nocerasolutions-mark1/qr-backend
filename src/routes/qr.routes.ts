@@ -8,6 +8,7 @@ import {
   updateQrCode,
   getQrPngBufferForCodeId,
   getQrCodeById,
+  deleteQrCode,
 } from "../services/qr.service.js";
 
 const router = Router();
@@ -94,6 +95,16 @@ router.get("/:id/image", async (req: AuthRequest, res, next) => {
       `inline; filename="qr-${qrCodeId}.png"`,
     );
     return res.send(pngBuffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/:id", async (req: AuthRequest, res, next) => {
+  try {
+    const qrCodeId = String(req.params.id);
+    const result = await deleteQrCode(req.auth!.tenantId, qrCodeId);
+    res.json(result);
   } catch (err) {
     next(err);
   }
