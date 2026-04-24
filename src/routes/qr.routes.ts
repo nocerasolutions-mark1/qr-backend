@@ -12,7 +12,20 @@ import {
 } from "../services/qr.service.js";
 
 const router = Router();
+
 router.use(requireAuth);
+
+const designJsonSchema = z.object({
+  contentType: z.string().optional(),
+  design: z
+    .object({
+      style: z.enum(["square", "dots", "rounded"]).optional(),
+      colorDark: z.string().optional(),
+      colorLight: z.string().optional(),
+      logo: z.string().optional(),
+    })
+    .optional(),
+});
 
 router.get("/", async (req: AuthRequest, res, next) => {
   try {
@@ -29,7 +42,7 @@ router.post("/", async (req: AuthRequest, res, next) => {
       name: z.string().min(1),
       targetUrl: z.string().url(),
       type: z.enum(["static", "dynamic"]).optional(),
-      designJson: z.unknown().optional(),
+      designJson: designJsonSchema.optional(),
     });
 
     const body = schema.parse(req.body);
@@ -63,7 +76,8 @@ router.patch("/:id", async (req: AuthRequest, res, next) => {
     const schema = z.object({
       name: z.string().optional(),
       targetUrl: z.string().url().optional(),
-      status: z.string().optional(),
+      status: z.enum(["active", "archived", "disabled"]).optional(),
+      designJson: designJsonSchema.optional(),
     });
 
     const body = schema.parse(req.body);
@@ -94,6 +108,7 @@ router.get("/:id/image", async (req: AuthRequest, res, next) => {
       "Content-Disposition",
       `inline; filename="qr-${qrCodeId}.png"`,
     );
+
     return res.send(pngBuffer);
   } catch (err) {
     next(err);

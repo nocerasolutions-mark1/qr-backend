@@ -2,7 +2,35 @@ import { prisma } from "../db/prisma.js";
 import { generateQrDataUrl, generateQrSvg } from "../utils/qr.js";
 import { makeShortPath } from "../utils/slug.js";
 import { env } from "../config/env.js";
-import QRCode from "qrcode";
+import { JSDOM } from "jsdom";
+import nodeCanvas from "canvas";
+import QRCodeStyling from "qr-code-styling";
+
+type QrDesignJson = {
+  contentType?: string;
+  design?: {
+    style?: "square" | "dots" | "rounded";
+    colorDark?: string;
+    colorLight?: string;
+    logo?: string;
+  };
+};
+
+function getQrContent(qrCode: {
+  type: string;
+  targetUrl: string;
+  shortPath: string;
+}) {
+  return qrCode.type === "static"
+    ? qrCode.targetUrl
+    : `${env.appBaseUrl}/r/${qrCode.shortPath}`;
+}
+
+function getDotsType(style?: string) {
+  if (style === "dots") return "dots";
+  if (style === "rounded") return "rounded";
+  return "square";
+}
 
 export async function createQrCode(input: {
   tenantId: string;
@@ -51,17 +79,46 @@ export async function getQrPngBufferForCodeId(
     throw new Error("QR code not found");
   }
 
-  const qrContent =
-    qrCode.type === "static"
-      ? qrCode.targetUrl
-      : `${env.appBaseUrl}/r/${qrCode.shortPath}`;
+  const designJson = qrCode.designJson as QrDesignJson | null;
+  const design = designJson?.design;
 
-  return QRCode.toBuffer(qrContent, {
-    errorCorrectionLevel: "H",
-    margin: 1,
-    width: 512,
+  const qrCodeStyling = new (QRCodeStyling as any)({
+    width: 800,
+    height: 800,
     type: "png",
+    data: getQrContent(qrCode),
+    image: design?.logo || undefined,
+    margin: 24,
+    jsdom: JSDOM,
+    nodeCanvas,
+    qrOptions: {
+      errorCorrectionLevel: "H",
+    },
+    dotsOptions: {
+      color: design?.colorDark || "#000000",
+      type: getDotsType(design?.style) as any,
+    },
+    backgroundOptions: {
+      color: design?.colorLight || "#ffffff",
+    },
+    cornersSquareOptions: {
+      type: design?.style === "rounded" ? "extra-rounded" : "square",
+      color: design?.colorDark || "#000000",
+    },
+    cornersDotOptions: {
+      type: design?.style === "dots" ? "dot" : "square",
+      color: design?.colorDark || "#000000",
+    },
+    imageOptions: {
+      crossOrigin: "anonymous",
+      margin: 10,
+      imageSize: 0.28,
+    },
   });
+
+  const rawData = await qrCodeStyling.getRawData("png");
+
+  return Buffer.from(rawData as ArrayBuffer);
 }
 
 export async function getQrCodes(tenantId: string) {
@@ -84,6 +141,7 @@ export async function updateQrCode(input: {
   name?: string;
   targetUrl?: string;
   status?: string;
+  designJson?: unknown;
 }) {
   const existing = await prisma.qrCode.findFirst({
     where: { id: input.qrCodeId, tenantId: input.tenantId },
@@ -107,6 +165,7 @@ export async function updateQrCode(input: {
       name: input.name,
       targetUrl: input.targetUrl,
       status: input.status,
+      designJson: input.designJson as object | undefined,
     },
   });
 }
@@ -120,12 +179,7 @@ export async function getQrSvgForCode(shortPath: string) {
     throw new Error("QR not found");
   }
 
-  const url =
-    qrCode.type === "static"
-      ? qrCode.targetUrl
-      : `${env.appBaseUrl}/r/${shortPath}`;
-
-  return generateQrSvg(url);
+  return generateQrSvg(getQrContent(qrCode));
 }
 
 export async function getQrCodeById(tenantId: string, qrCodeId: string) {
