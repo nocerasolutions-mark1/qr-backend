@@ -32,6 +32,34 @@ function getDotsType(style?: string) {
   return "square";
 }
 
+async function logoUrlToDataUrl(logoUrl?: string): Promise<string | undefined> {
+  if (!logoUrl || !logoUrl.startsWith("http")) return undefined;
+
+  try {
+    const response = await fetch(logoUrl);
+
+    if (!response.ok) {
+      console.warn("Logo fetch failed:", response.status, logoUrl);
+      return undefined;
+    }
+
+    const contentType = response.headers.get("content-type") || "image/png";
+
+    if (!contentType.startsWith("image/")) {
+      console.warn("Logo URL is not an image:", contentType, logoUrl);
+      return undefined;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+
+    return `data:${contentType};base64,${base64}`;
+  } catch (err) {
+    console.warn("Logo fetch error:", err);
+    return undefined;
+  }
+}
+
 export async function createQrCode(input: {
   tenantId: string;
   name: string;
@@ -81,21 +109,14 @@ export async function getQrPngBufferForCodeId(
 
   const designJson = qrCode.designJson as QrDesignJson | null;
   const design = designJson?.design;
-  const logoUrl =
-    design?.logo &&
-    design.logo.startsWith("http") &&
-    (design.logo.endsWith(".png") ||
-      design.logo.endsWith(".jpg") ||
-      design.logo.endsWith(".jpeg") ||
-      design.logo.endsWith(".svg"))
-      ? design.logo
-      : undefined;
+  const logoDataUrl = await logoUrlToDataUrl(design?.logo);
+
   const qrCodeStyling = new (QRCodeStyling as any)({
     width: 800,
     height: 800,
     type: "png",
     data: getQrContent(qrCode),
-    image: logoUrl,
+    image: logoDataUrl,
     margin: 24,
     jsdom: JSDOM,
     nodeCanvas,
@@ -118,9 +139,9 @@ export async function getQrPngBufferForCodeId(
       color: design?.colorDark || "#000000",
     },
     imageOptions: {
-      crossOrigin: "anonymous",
       margin: 10,
       imageSize: 0.28,
+      hideBackgroundDots: true,
     },
   });
 
