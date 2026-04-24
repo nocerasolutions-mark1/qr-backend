@@ -66,9 +66,7 @@ async function overlayLogoOnQr(qrBuffer: Buffer, logo?: string) {
 
   try {
     const qrSize = 800;
-    const logoSize = 190;
-    const logoBackgroundSize = 250;
-    const logoBackgroundRadius = 38;
+    const logoSize = 210;
 
     const resizedLogo = await sharp(logoBuffer)
       .resize(logoSize, logoSize, {
@@ -78,48 +76,12 @@ async function overlayLogoOnQr(qrBuffer: Buffer, logo?: string) {
       .png()
       .toBuffer();
 
-    const roundedMask = Buffer.from(`
-      <svg width="${logoBackgroundSize}" height="${logoBackgroundSize}">
-        <rect
-          x="0"
-          y="0"
-          width="${logoBackgroundSize}"
-          height="${logoBackgroundSize}"
-          rx="${logoBackgroundRadius}"
-          ry="${logoBackgroundRadius}"
-          fill="white"
-        />
-      </svg>
-    `);
-
-    const logoBackground = await sharp({
-      create: {
-        width: logoBackgroundSize,
-        height: logoBackgroundSize,
-        channels: 4,
-        background: { r: 255, g: 255, b: 255, alpha: 1 },
-      },
-    })
-      .composite([
-        {
-          input: roundedMask,
-          blend: "dest-in",
-        },
-        {
-          input: resizedLogo,
-          left: Math.floor((logoBackgroundSize - logoSize) / 2),
-          top: Math.floor((logoBackgroundSize - logoSize) / 2),
-        },
-      ])
-      .png()
-      .toBuffer();
-
     return sharp(qrBuffer)
       .composite([
         {
-          input: logoBackground,
-          left: Math.floor((qrSize - logoBackgroundSize) / 2),
-          top: Math.floor((qrSize - logoBackgroundSize) / 2),
+          input: resizedLogo,
+          left: Math.floor((qrSize - logoSize) / 2),
+          top: Math.floor((qrSize - logoSize) / 2),
         },
       ])
       .png()
