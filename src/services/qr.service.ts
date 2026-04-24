@@ -33,34 +33,32 @@ function getDotsType(style?: string) {
   return "square";
 }
 
-async function fetchLogoBuffer(logoUrl?: string): Promise<Buffer | undefined> {
-  if (!logoUrl || !logoUrl.startsWith("http")) return undefined;
+async function getLogoBuffer(logo?: string): Promise<Buffer | undefined> {
+  if (!logo) return undefined;
 
   try {
-    const response = await fetch(logoUrl);
-
-    if (!response.ok) {
-      console.warn("Logo fetch failed:", response.status, logoUrl);
-      return undefined;
+    if (logo.startsWith("data:image/")) {
+      const base64 = logo.split(",")[1];
+      return Buffer.from(base64, "base64");
     }
 
-    const contentType = response.headers.get("content-type") || "";
+    if (logo.startsWith("http")) {
+      const response = await fetch(logo);
+      if (!response.ok) return undefined;
 
-    if (!contentType.startsWith("image/")) {
-      console.warn("Logo URL is not an image:", contentType, logoUrl);
-      return undefined;
+      const arrayBuffer = await response.arrayBuffer();
+      return Buffer.from(arrayBuffer);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
+    return undefined;
   } catch (err) {
-    console.warn("Logo fetch error:", err);
+    console.warn("Logo parse/fetch error:", err);
     return undefined;
   }
 }
 
 async function overlayLogoOnQr(qrBuffer: Buffer, logoUrl?: string) {
-  const logoBuffer = await fetchLogoBuffer(logoUrl);
+  const logoBuffer = await getLogoBuffer(logoUrl);
 
   if (!logoBuffer) {
     return qrBuffer;
