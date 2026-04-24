@@ -171,6 +171,8 @@ export async function getQrPngBufferForCodeId(
 
   const designJson = qrCode.designJson as QrDesignJson | null;
   const design = designJson?.design;
+  const isRounded = design?.style === "rounded";
+  const isDots = design?.style === "dots";
 
   const qrCodeStyling = new (QRCodeStyling as any)({
     width: 800,
@@ -185,18 +187,18 @@ export async function getQrPngBufferForCodeId(
     },
     dotsOptions: {
       color: design?.colorDark || "#000000",
-      type: getDotsType(design?.style) as any,
+      type: isDots ? "dots" : isRounded ? "rounded" : "square",
     },
     backgroundOptions: {
       color: design?.colorLight || "#ffffff",
     },
     cornersSquareOptions: {
-      type: design?.style === "rounded" ? "extra-rounded" : "square",
       color: design?.colorDark || "#000000",
+      type: isRounded || isDots ? "extra-rounded" : "square",
     },
     cornersDotOptions: {
-      type: design?.style === "dots" ? "dot" : "square",
       color: design?.colorDark || "#000000",
+      type: isRounded || isDots ? "dot" : "square",
     },
   });
 
