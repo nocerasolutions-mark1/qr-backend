@@ -5,6 +5,7 @@ import { env } from "../config/env.js";
 import { JSDOM } from "jsdom";
 import nodeCanvas from "canvas";
 import QRCodeStyling from "qr-code-styling";
+import sharp from "sharp";
 
 type QrDesignJson = {
   contentType?: string;
@@ -32,7 +33,7 @@ function getDotsType(style?: string) {
   return "square";
 }
 
-async function logoUrlToDataUrl(logoUrl?: string): Promise<string | undefined> {
+async function fetchLogoBuffer(logoUrl?: string): Promise<Buffer | undefined> {
   if (!logoUrl || !logoUrl.startsWith("http")) return undefined;
 
   try {
@@ -43,7 +44,7 @@ async function logoUrlToDataUrl(logoUrl?: string): Promise<string | undefined> {
       return undefined;
     }
 
-    const contentType = response.headers.get("content-type") || "image/png";
+    const contentType = response.headers.get("content-type") || "";
 
     if (!contentType.startsWith("image/")) {
       console.warn("Logo URL is not an image:", contentType, logoUrl);
@@ -51,12 +52,63 @@ async function logoUrlToDataUrl(logoUrl?: string): Promise<string | undefined> {
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-
-    return `data:${contentType};base64,${base64}`;
+    return Buffer.from(arrayBuffer);
   } catch (err) {
     console.warn("Logo fetch error:", err);
     return undefined;
+  }
+}
+
+async function overlayLogoOnQr(qrBuffer: Buffer, logoUrl?: string) {
+  const logoBuffer = await fetchLogoBuffer(logoUrl);
+
+  if (!logoBuffer) {
+    return qrBuffer;
+  }
+
+  try {
+    const logoSize = 170;
+    const logoBackgroundSize = 220;
+
+    const logoPng = await sharp(logoBuffer)
+      .resize(logoSize, logoSize, {
+        fit: "contain",
+        background: { r: 255, g: 255, b: 255, alpha: 0 },
+      })
+      .png()
+      .toBuffer();
+
+    const logoBackground = await sharp({
+      create: {
+        width: logoBackgroundSize,
+        height: logoBackgroundSize,
+        channels: 4,
+        background: "#ffffff",
+      },
+    })
+      .composite([
+        {
+          input: logoPng,
+          left: Math.floor((logoBackgroundSize - logoSize) / 2),
+          top: Math.floor((logoBackgroundSize - logoSize) / 2),
+        },
+      ])
+      .png()
+      .toBuffer();
+
+    return sharp(qrBuffer)
+      .composite([
+        {
+          input: logoBackground,
+          left: Math.floor((800 - logoBackgroundSize) / 2),
+          top: Math.floor((800 - logoBackgroundSize) / 2),
+        },
+      ])
+      .png()
+      .toBuffer();
+  } catch (err) {
+    console.warn("Logo overlay failed:", err);
+    return qrBuffer;
   }
 }
 
@@ -109,14 +161,12 @@ export async function getQrPngBufferForCodeId(
 
   const designJson = qrCode.designJson as QrDesignJson | null;
   const design = designJson?.design;
-  const logoDataUrl = await logoUrlToDataUrl(design?.logo);
 
   const qrCodeStyling = new (QRCodeStyling as any)({
     width: 800,
     height: 800,
     type: "png",
     data: getQrContent(qrCode),
-    image: logoDataUrl,
     margin: 24,
     jsdom: JSDOM,
     nodeCanvas,
@@ -138,16 +188,12 @@ export async function getQrPngBufferForCodeId(
       type: design?.style === "dots" ? "dot" : "square",
       color: design?.colorDark || "#000000",
     },
-    imageOptions: {
-      margin: 10,
-      imageSize: 0.28,
-      hideBackgroundDots: true,
-    },
   });
 
   const rawData = await qrCodeStyling.getRawData("png");
+  const qrBuffer = Buffer.from(rawData as ArrayBuffer);
 
-  return Buffer.from(rawData as ArrayBuffer);
+  return overlayLogoOnQr(qrBuffer, design?.logo);
 }
 
 export async function getQrCodes(tenantId: string) {
