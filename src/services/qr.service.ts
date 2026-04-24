@@ -81,13 +81,21 @@ export async function getQrPngBufferForCodeId(
 
   const designJson = qrCode.designJson as QrDesignJson | null;
   const design = designJson?.design;
-
+  const logoUrl =
+    design?.logo &&
+    design.logo.startsWith("http") &&
+    (design.logo.endsWith(".png") ||
+      design.logo.endsWith(".jpg") ||
+      design.logo.endsWith(".jpeg") ||
+      design.logo.endsWith(".svg"))
+      ? design.logo
+      : undefined;
   const qrCodeStyling = new (QRCodeStyling as any)({
     width: 800,
     height: 800,
     type: "png",
     data: getQrContent(qrCode),
-    image: design?.logo || undefined,
+    image: logoUrl,
     margin: 24,
     jsdom: JSDOM,
     nodeCanvas,
