@@ -59,37 +59,67 @@ async function getLogoBuffer(logo?: string): Promise<Buffer | undefined> {
 
 async function overlayLogoOnQr(qrBuffer: Buffer, logo?: string) {
   const logoBuffer = await getLogoBuffer(logo);
+  if (!logoBuffer) return qrBuffer;
 
-  if (!logoBuffer) {
-    return qrBuffer;
-  }
+  const qrSize = 800;
+  const logoSize = 180; // smaller = cleaner
+  const padding = 30; // breathing space
 
-  try {
-    const qrSize = 800;
-    const logoSize = 210;
+  // Step 1: create circular cutout mask
+  const mask = await sharp({
+    create: {
+      width: logoSize + padding,
+      height: logoSize + padding,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  })
+    .composite([
+      {
+        input: Buffer.from(
+          `<svg>
+            <circle cx="${(logoSize + padding) / 2}" 
+                    cy="${(logoSize + padding) / 2}" 
+                    r="${logoSize / 2 + padding / 2}" 
+                    fill="white"/>
+          </svg>`,
+        ),
+        blend: "dest-in",
+      },
+    ])
+    .png()
+    .toBuffer();
 
-    const resizedLogo = await sharp(logoBuffer)
-      .resize(logoSize, logoSize, {
-        fit: "contain",
-        background: { r: 255, g: 255, b: 255, alpha: 0 },
-      })
-      .png()
-      .toBuffer();
+  // Step 2: resize logo
+  const resizedLogo = await sharp(logoBuffer)
+    .resize(logoSize, logoSize, {
+      fit: "contain",
+      background: { r: 255, g: 255, b: 255, alpha: 0 },
+    })
+    .png()
+    .toBuffer();
 
-    return sharp(qrBuffer)
-      .composite([
-        {
-          input: resizedLogo,
-          left: Math.floor((qrSize - logoSize) / 2),
-          top: Math.floor((qrSize - logoSize) / 2),
-        },
-      ])
-      .png()
-      .toBuffer();
-  } catch (err) {
-    console.warn("Logo overlay failed:", err);
-    return qrBuffer;
-  }
+  // Step 3: combine logo + mask
+  const logoWithPadding = await sharp(mask)
+    .composite([
+      {
+        input: resizedLogo,
+        gravity: "center",
+      },
+    ])
+    .png()
+    .toBuffer();
+
+  // Step 4: overlay onto QR
+  return sharp(qrBuffer)
+    .composite([
+      {
+        input: logoWithPadding,
+        gravity: "center",
+      },
+    ])
+    .png()
+    .toBuffer();
 }
 
 export async function createQrCode(input: {
