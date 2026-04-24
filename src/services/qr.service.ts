@@ -57,49 +57,26 @@ async function getLogoBuffer(logo?: string): Promise<Buffer | undefined> {
   }
 }
 
-async function overlayLogoOnQr(qrBuffer: Buffer, logoUrl?: string) {
-  const logoBuffer = await getLogoBuffer(logoUrl);
+async function overlayLogoOnQr(qrBuffer: Buffer, logo?: string) {
+  const logoBuffer = await getLogoBuffer(logo);
 
-  if (!logoBuffer) {
-    return qrBuffer;
-  }
+  if (!logoBuffer) return qrBuffer;
 
   try {
-    const logoSize = 170;
-    const logoBackgroundSize = 220;
+    const logoSize = 160;
 
-    const logoPng = await sharp(logoBuffer)
+    const resizedLogo = await sharp(logoBuffer)
       .resize(logoSize, logoSize, {
         fit: "contain",
-        background: { r: 255, g: 255, b: 255, alpha: 0 },
       })
-      .png()
-      .toBuffer();
-
-    const logoBackground = await sharp({
-      create: {
-        width: logoBackgroundSize,
-        height: logoBackgroundSize,
-        channels: 4,
-        background: "#ffffff",
-      },
-    })
-      .composite([
-        {
-          input: logoPng,
-          left: Math.floor((logoBackgroundSize - logoSize) / 2),
-          top: Math.floor((logoBackgroundSize - logoSize) / 2),
-        },
-      ])
       .png()
       .toBuffer();
 
     return sharp(qrBuffer)
       .composite([
         {
-          input: logoBackground,
-          left: Math.floor((800 - logoBackgroundSize) / 2),
-          top: Math.floor((800 - logoBackgroundSize) / 2),
+          input: resizedLogo,
+          gravity: "center",
         },
       ])
       .png()
