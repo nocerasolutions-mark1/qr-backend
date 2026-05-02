@@ -1,4 +1,5 @@
-import geoip from "geoip-lite";
+import maxmind, { CityResponse } from "maxmind";
+import path from "path";
 import type { Request } from "express";
 
 export interface GeoLocation {
@@ -6,6 +7,18 @@ export interface GeoLocation {
   city: string | null;
   latitude: number | null;
   longitude: number | null;
+}
+
+const null_result: GeoLocation = { country: null, city: null, latitude: null, longitude: null };
+
+let reader: Awaited<ReturnType<typeof maxmind.open<CityResponse>>> | null = null;
+
+async function getReader() {
+  if (!reader) {
+    const dbPath = path.resolve("GeoLite2-City.mmdb");
+    reader = await maxmind.open<CityResponse>(dbPath);
+  }
+  return reader;
 }
 
 export function extractClientIp(req: Request): string | undefined {
@@ -17,18 +30,23 @@ export function extractClientIp(req: Request): string | undefined {
   return req.headers["x-real-ip"] as string | undefined ?? req.ip;
 }
 
-export function lookupGeo(ip: string | undefined): GeoLocation {
-  if (!ip) return { country: null, city: null, latitude: null, longitude: null };
+export async function lookupGeo(ip: string | undefined): Promise<GeoLocation> {
+  if (!ip) return null_result;
 
   const stripped = ip.startsWith("::ffff:") ? ip.slice(7) : ip;
-  const geo = geoip.lookup(stripped);
 
-  if (!geo) return { country: null, city: null, latitude: null, longitude: null };
+  try {
+    const db = await getReader();
+    const geo = db.get(stripped);
+    if (!geo) return null_result;
 
-  return {
-    country: geo.country || null,
-    city: geo.city || null,
-    latitude: geo.ll?.[0] ?? null,
-    longitude: geo.ll?.[1] ?? null,
-  };
+    return {
+      country: geo.country?.iso_code ?? null,
+      city: geo.city?.names?.en ?? null,
+      latitude: geo.location?.latitude ?? null,
+      longitude: geo.location?.longitude ?? null,
+    };
+  } catch {
+    return null_result;
+  }
 }

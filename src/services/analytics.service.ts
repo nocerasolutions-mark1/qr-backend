@@ -11,11 +11,7 @@ export async function logScan(input: {
   referer?: string;
 }) {
   const parsed = input.userAgent ? UAParser(input.userAgent) : undefined;
-  const geo = lookupGeo(input.ip);
-
-  console.log("stripped IP:", input.ip, "geo result:", geo);
-
-  console.log("GEO: " + JSON.stringify(geo));
+  const geo = await lookupGeo(input.ip);
 
   return prisma.scanEvent.create({
     data: {
