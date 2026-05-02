@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma.js";
 import { hashIp } from "../utils/hash.js";
+import { lookupGeo } from "../utils/geo.js";
 import UAParser from "ua-parser-js";
 
 export async function logScan(input: {
@@ -10,6 +11,7 @@ export async function logScan(input: {
   referer?: string;
 }) {
   const parsed = input.userAgent ? UAParser(input.userAgent) : undefined;
+  const geo = lookupGeo(input.ip);
 
   return prisma.scanEvent.create({
     data: {
@@ -21,6 +23,10 @@ export async function logScan(input: {
       deviceType: parsed?.device.type ?? "desktop",
       os: parsed?.os.name,
       browser: parsed?.browser.name,
+      country: geo.country,
+      city: geo.city,
+      latitude: geo.latitude,
+      longitude: geo.longitude,
     },
   });
 }
@@ -54,6 +60,8 @@ export async function getQrAnalytics(tenantId: string, qrCodeId: string) {
       referer: true,
       country: true,
       city: true,
+      latitude: true,
+      longitude: true,
     },
   });
 

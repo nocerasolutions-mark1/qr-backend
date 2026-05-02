@@ -62,6 +62,8 @@ model ScanEvent {
   referer    String?
   country    String?
   city       String?
+  latitude   Float?
+  longitude  Float?
   deviceType String?
   os         String?
   browser    String?

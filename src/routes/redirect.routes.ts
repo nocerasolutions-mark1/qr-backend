@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db/prisma.js";
 import { logScan } from "../services/analytics.service.js";
+import { extractClientIp } from "../utils/geo.js";
 
 const router = Router();
 
@@ -17,7 +18,7 @@ router.get("/r/:shortPath", async (req, res, next) => {
     await logScan({
       tenantId: qrCode.tenantId,
       qrCodeId: qrCode.id,
-      ip: req.ip,
+      ip: extractClientIp(req),
       userAgent: req.headers["user-agent"],
       referer: req.headers.referer,
     });
