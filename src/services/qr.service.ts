@@ -227,6 +227,7 @@ export async function updateQrCode(input: {
   qrCodeId: string;
   name?: string;
   targetUrl?: string;
+  type?: "static" | "dynamic";
   status?: string;
   designJson?: unknown;
 }) {
@@ -238,13 +239,18 @@ export async function updateQrCode(input: {
     throw new Error("QR code not found");
   }
 
+  const newType = input.type ?? existing.type;
+  const newTargetUrl = input.targetUrl ?? existing.targetUrl;
+  const typeChanged = input.type !== undefined && input.type !== existing.type;
+  const urlChangedOnStatic = newType === "static" && input.targetUrl && input.targetUrl !== existing.targetUrl;
+
   let regeneratedImageUrl: string | undefined;
-  if (
-    existing.type === "static" &&
-    input.targetUrl &&
-    input.targetUrl !== existing.targetUrl
-  ) {
-    regeneratedImageUrl = await generateQrDataUrl(input.targetUrl);
+  if (typeChanged || urlChangedOnStatic) {
+    if (newType === "static") {
+      regeneratedImageUrl = await generateQrDataUrl(newTargetUrl);
+    } else {
+      regeneratedImageUrl = await generateQrDataUrl(`${env.appBaseUrl}/r/${existing.shortPath}`);
+    }
   }
 
   return prisma.qrCode.update({
@@ -252,6 +258,7 @@ export async function updateQrCode(input: {
     data: {
       name: input.name,
       targetUrl: input.targetUrl,
+      type: input.type,
       status: input.status,
       designJson: input.designJson as object | undefined,
       ...(regeneratedImageUrl ? { imageUrl: regeneratedImageUrl } : {}),

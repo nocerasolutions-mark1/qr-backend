@@ -76,6 +76,7 @@ router.patch("/:id", async (req: AuthRequest, res, next) => {
     const schema = z.object({
       name: z.string().optional(),
       targetUrl: z.string().url().optional(),
+      type: z.enum(["static", "dynamic"]).optional(),
       status: z.enum(["active", "archived", "disabled"]).optional(),
       designJson: designJsonSchema.optional(),
     });
