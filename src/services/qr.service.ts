@@ -238,12 +238,13 @@ export async function updateQrCode(input: {
     throw new Error("QR code not found");
   }
 
+  let regeneratedImageUrl: string | undefined;
   if (
     existing.type === "static" &&
     input.targetUrl &&
     input.targetUrl !== existing.targetUrl
   ) {
-    throw new Error("Static QR target URL cannot be edited");
+    regeneratedImageUrl = await generateQrDataUrl(input.targetUrl);
   }
 
   return prisma.qrCode.update({
@@ -253,6 +254,7 @@ export async function updateQrCode(input: {
       targetUrl: input.targetUrl,
       status: input.status,
       designJson: input.designJson as object | undefined,
+      ...(regeneratedImageUrl ? { imageUrl: regeneratedImageUrl } : {}),
     },
   });
 }
